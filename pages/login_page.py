@@ -91,9 +91,12 @@ class LoginPage:
         self.click_sign_in()
 
     def get_error_messages(self) -> list:
-        """Trả về danh sách error message trên form."""
+        """Trả về danh sách error message trên form (không chờ lâu nếu không có lỗi)."""
         try:
-            self.wait.until(EC.presence_of_element_located(self.error_messages))
+            # Chỉ chờ ngắn. Login thành công không có lỗi thì trả về ngay, tránh timeout 12 giây.
+            WebDriverWait(self.driver, 1.5).until(
+                EC.presence_of_element_located(self.error_messages)
+            )
             elements = self.driver.find_elements(*self.error_messages)
             return [el.text.strip() for el in elements if el.text.strip()]
         except TimeoutException:

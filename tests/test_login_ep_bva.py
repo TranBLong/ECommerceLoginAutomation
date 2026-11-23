@@ -19,6 +19,9 @@ from utils.browser_setup import BrowserSetup
 class TestLoginEPBVA(unittest.TestCase):
     """Bộ test Login - EP + BVA"""
 
+    # Dừng sau mỗi test để quan sát kết quả trên trình duyệt trước khi sang test tiếp theo.
+    OBSERVE_SECONDS = 3
+
     @classmethod
     def setUpClass(cls):
         config_path = os.path.join(os.path.dirname(__file__), "..", "config.ini")
@@ -38,7 +41,11 @@ class TestLoginEPBVA(unittest.TestCase):
         self.page = LoginPage(self.driver)
         # Cách ổn định: vào home trước rồi click nút Login (tránh /signin bị Not Found)
         self.page.open_from_home(self.base_url)
-        time.sleep(0.5)  # đợi form render ổn định
+        time.sleep(1)  # đợi form load
+
+    def tearDown(self):
+        """Giữ màn hình kết quả vài giây rồi mới chuyển sang test kế tiếp."""
+        time.sleep(self.OBSERVE_SECONDS)
 
     # ------------------------------------------------------------------
     # TC_LOGIN_01 - Positive (EP)
