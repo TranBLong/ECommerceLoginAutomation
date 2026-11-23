@@ -19,9 +19,6 @@ from utils.browser_setup import BrowserSetup
 class TestLoginEPBVA(unittest.TestCase):
     """Bộ test Login - EP + BVA"""
 
-    # Dừng sau mỗi test để quan sát kết quả trên trình duyệt trước khi sang test tiếp theo.
-    OBSERVE_SECONDS = 3
-
     @classmethod
     def setUpClass(cls):
         config_path = os.path.join(os.path.dirname(__file__), "..", "config.ini")
@@ -41,11 +38,15 @@ class TestLoginEPBVA(unittest.TestCase):
         self.page = LoginPage(self.driver)
         # Cách ổn định: vào home trước rồi click nút Login (tránh /signin bị Not Found)
         self.page.open_from_home(self.base_url)
-        time.sleep(1)  # đợi form load
+        observe = float(os.getenv("OBSERVE_SECONDS", self.config.get("test", "observe_seconds", fallback="0")))
+        if observe > 0:
+            time.sleep(observe)
 
     def tearDown(self):
         """Giữ màn hình kết quả vài giây rồi mới chuyển sang test kế tiếp."""
-        time.sleep(self.OBSERVE_SECONDS)
+        observe = float(os.getenv("OBSERVE_SECONDS", self.config.get("test", "observe_seconds", fallback="0")))
+        if observe > 0:
+            time.sleep(observe)
 
     # ------------------------------------------------------------------
     # TC_LOGIN_01 - Positive (EP)
@@ -68,13 +69,13 @@ class TestLoginEPBVA(unittest.TestCase):
 
         errors = self.page.get_all_visible_errors()
         # Có thể là toast hoặc message trên form
-        body_text = self.driver.find_element("tag name", "body").text.lower()
+        body_text = self.driver.find_element("tag name", "body").text
 
         self.assertTrue(
-            any("not found" in e.lower() or "email address was not found" in e.lower() for e in errors)
-            or "not found" in body_text
-            or "email address was not found" in body_text,
-            f"Không thấy message lỗi 'email not found'. Errors: {errors}"
+            any("The email address was not found." in e for e in errors)
+            or "The email address was not found." in body_text
+            or "email address was not found" in body_text.lower(),
+            f"Không thấy message 'The email address was not found.'. Errors: {errors}"
         )
 
     # ------------------------------------------------------------------
@@ -88,9 +89,8 @@ class TestLoginEPBVA(unittest.TestCase):
         body_text = self.driver.find_element("tag name", "body").text.lower()
 
         self.assertTrue(
-            any("not correct" in e.lower() or "email or password" in e.lower() for e in errors)
-            or "not correct" in body_text
-            or "email or password" in body_text,
+            any("email or password not correct" in e.lower() for e in errors)
+            or "email or password not correct" in body_text,
             f"Không thấy message lỗi password. Errors: {errors}"
         )
 
@@ -105,9 +105,8 @@ class TestLoginEPBVA(unittest.TestCase):
         body_text = self.driver.find_element("tag name", "body").text
 
         self.assertTrue(
-            any("@" in e for e in errors)
-            or "Định dạng phải có '@'" in body_text
-            or "@" in body_text,
+            any("Định dạng phải có '@' trong chuỗi" in e for e in errors)
+            or "Định dạng phải có '@' trong chuỗi" in body_text,
             f"Không thấy lỗi format email. Errors: {errors}"
         )
 
@@ -156,7 +155,7 @@ class TestLoginEPBVA(unittest.TestCase):
 
     # ------------------------------------------------------------------
     # TC_LOGIN_08 - Positive (BVA) - Minimum boundary (8 characters)
-    # Note: Excel ghi "6 characters" nhưng data thực tế là 8 ký tự và message lỗi là 8.
+    # Excel dùng dữ liệu đúng 8 ký tự, tại biên tối thiểu.
     # ------------------------------------------------------------------
     def test_TC_LOGIN_08_password_min_boundary(self):
         """Verify login with password length at minimum boundary (8 characters)"""
@@ -190,6 +189,40 @@ class TestLoginEPBVA(unittest.TestCase):
             or "Yêu cầu tối thiểu 8 ký tự" in body_text
             or "tối thiểu 8" in body_text.lower(),
             f"Không thấy lỗi password quá ngắn. Errors: {errors}"
+        )
+
+    # ------------------------------------------------------------------
+    # TC_LOGIN_10 - Negative (BVA) - below boundary (7 characters)
+    # ------------------------------------------------------------------
+    def test_TC_LOGIN_10_password_below_min_7(self):
+        """Verify login with password length just below minimum (7 characters)"""
+        self.page.login(self.valid_email, "aA@2aA@")
+
+        errors = self.page.get_error_messages()
+        body_text = self.driver.find_element("tag name", "body").text
+
+        self.assertTrue(
+            any("Yêu cầu tối thiểu 8 ký tự" in e for e in errors)
+            or "Yêu cầu tối thiểu 8 ký tự" in body_text
+            or "tối thiểu 8" in body_text.lower(),
+            f"Không thấy lỗi password 7 ký tự. Errors: {errors}"
+        )
+
+    # ------------------------------------------------------------------
+    # TC_LOGIN_11 - Positive (BVA) - above boundary (9 characters)
+    # ------------------------------------------------------------------
+    def test_TC_LOGIN_11_password_above_min_9(self):
+        """Verify 9-character password is not rejected for its length"""
+        self.page.login("aa@gmail.com", "aA@2aA@2x")
+
+        errors = self.page.get_error_messages()
+        body_text = self.driver.find_element("tag name", "body").text
+        length_error = any("tối thiểu" in e.lower() or "minimum" in e.lower() for e in errors)
+        length_error = length_error or "tối thiểu" in body_text.lower() or "minimum" in body_text.lower()
+
+        self.assertFalse(
+            length_error,
+            f"Password 9 ký tự vẫn bị báo lỗi length. Errors: {errors}"
         )
 
     @classmethod

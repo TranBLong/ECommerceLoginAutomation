@@ -9,7 +9,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tests.test_login_ep_bva import TestLoginEPBVA
-from utils.excel_report import export_excel_report
+from utils.excel_report import export_excel_report, update_source_excel_status
 
 
 class TimedTestResult(unittest.TextTestResult):
@@ -43,6 +43,11 @@ def _export_excel(result):
         export_excel_report(result)
     except Exception as e:
         print(f"[Cảnh báo] Không xuất được Excel: {e}")
+    try:
+        source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", "TestCases_Login_EP_BVA.xlsx")
+        update_source_excel_status(result, source_path)
+    except Exception as e:
+        print(f"[Cảnh báo] Không cập nhật được Status trong Excel nguồn: {e}")
 
 
 if __name__ == "__main__":

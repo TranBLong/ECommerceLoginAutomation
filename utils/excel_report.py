@@ -98,6 +98,41 @@ def export_excel_report(result, output_dir="reports"):
     return filename
 
 
+def update_source_excel_status(result, excel_path="testdata/TestCases_Login_EP_BVA.xlsx"):
+    """Cập nhật cột Status trong workbook nguồn theo kết quả test vừa chạy."""
+    from openpyxl import load_workbook
+
+    if not os.path.exists(excel_path):
+        print(f"[Cảnh báo] Không tìm thấy workbook nguồn: {excel_path}")
+        return
+
+    status_map = {}
+    for item in _collect_tests(result):
+        if item["id"]:
+            status_map[item["id"]] = {
+                "PASS": "Pass",
+                "FAIL": "Fail",
+                "ERROR": "Error",
+            }.get(item["status"], "Untested")
+
+    if not status_map:
+        return
+
+    wb = load_workbook(excel_path)
+    ws = wb["TestCases_Login"]
+    headers = {cell.value: cell.column for cell in ws[1]}
+    id_column = headers.get("Test Case ID", 2)
+    status_column = headers.get("Status", 9)
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        test_id = row[id_column - 1].value
+        if test_id in status_map:
+            row[status_column - 1].value = status_map[test_id]
+
+    wb.save(excel_path)
+    print(f"Đã cập nhật trạng thái test trong workbook: {excel_path}")
+
+
 def _collect_tests(result):
     """Chuẩn hóa kết quả từ unittest thuần và HtmlTestRunner."""
     all_tests = []
