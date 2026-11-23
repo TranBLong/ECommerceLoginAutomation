@@ -25,7 +25,7 @@ class LoginPage:
         self.error_messages = (By.CSS_SELECTOR, ".chakra-form__error-message")
         self.any_error = (By.CSS_SELECTOR, ".chakra-form__error-message, [role='alert']")
 
-        # Sau khi login
+        # Sau khi login (website KHÔNG chuyển trang, chỉ đổi header)
         self.admin_btn = (By.XPATH, "//button[normalize-space()='Admin'] | //a[contains(.,'Admin')]")
         self.profile_btn = (By.XPATH, "//button[normalize-space()='Profile'] | //a[contains(.,'Profile')]")
 
@@ -91,7 +91,7 @@ class LoginPage:
         self.click_sign_in()
 
     def get_error_messages(self) -> list:
-        """Trả về danh sách error message trên form (không chờ lâu nếu không có lỗi)."""
+        """Trả về danh sách error message inline trên form (không chờ lâu nếu không có lỗi)."""
         try:
             # Chỉ chờ ngắn. Login thành công không có lỗi thì trả về ngay, tránh timeout 12 giây.
             WebDriverWait(self.driver, 1.5).until(
@@ -110,26 +110,33 @@ class LoginPage:
         except Exception:
             return []
 
+    def get_body_text(self) -> str:
+        return self.driver.find_element(By.TAG_NAME, "body").text
+
+    def wait_for_text(self, expected: str, timeout: int = 10) -> bool:
+        """
+        Chờ tới khi body chứa đoạn text (không phân biệt hoa/thường).
+        Dùng cho lỗi trả về từ server (khung đỏ), vì lỗi này hiện sau khi có response.
+        """
+        expected = expected.lower()
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda d: expected in d.find_element(By.TAG_NAME, "body").text.lower()
+            )
+            return True
+        except TimeoutException:
+            return False
+
     def is_login_successful(self, timeout: int = 10) -> bool:
         """
-        Login thành công khi:
-        - URL không còn /signin, HOẶC
-        - Xuất hiện nút Admin / Profile
+        Login thành công khi header xuất hiện nút Profile (và Admin nếu là tài khoản admin).
+        Lưu ý: website KHÔNG redirect, URL vẫn là /signin nên không dùng URL để kiểm tra.
         """
         try:
             WebDriverWait(self.driver, timeout).until(
-                lambda d: (
-                    "/signin" not in d.current_url
-                    or len(d.find_elements(*self.admin_btn)) > 0
-                    or len(d.find_elements(*self.profile_btn)) > 0
-                )
+                lambda d: len(d.find_elements(*self.profile_btn)) > 0
+                or len(d.find_elements(*self.admin_btn)) > 0
             )
-            # Nếu vẫn ở /signin nhưng có Admin thì cũng coi là thành công
-            if "/signin" in self.driver.current_url:
-                return (
-                    len(self.driver.find_elements(*self.admin_btn)) > 0
-                    or len(self.driver.find_elements(*self.profile_btn)) > 0
-                )
             return True
         except TimeoutException:
             return False

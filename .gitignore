@@ -1,27 +1,19 @@
-# Virtual environments
+# Python
 venv/
 .venv/
-env/
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+*.pyc
+.pytest_cache/
 
-# Generated test reports
-reports/*
+# Báo cáo sinh ra khi chạy test (giữ lại thư mục)
+reports/*.html
+reports/*.xlsx
 !reports/.gitkeep
-*.html
-!README.md
+
+# Bản sao lưu Excel do script tạo
+testdata/backup/
 
 # IDE / OS
-.idea/
 .vscode/
-*.swp
+.idea/
 .DS_Store
-Thumbs.db
-
-# Local driver
-resources/chromedriver*
