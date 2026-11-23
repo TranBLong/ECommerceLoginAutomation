@@ -17,7 +17,10 @@ Dựa trên bộ test case **Equivalence Partitioning (EP)** và **Boundary Valu
 | TC_LOGIN_06 | Empty password | Negative (EP) | Để trống password |
 | TC_LOGIN_07 | Both empty | Negative (EP) | Cả hai field trống |
 | TC_LOGIN_08 | Password min boundary | Positive (BVA) | Password đúng độ dài tối thiểu (8 ký tự) |
-| TC_LOGIN_09 | Password below min | Negative (BVA) | Password dưới 8 ký tự |
+| TC_LOGIN_09 | Password below min | Negative (BVA) | Password 5 ký tự (dưới biên) |
+| TC_LOGIN_10 | Password 7 chars | Negative (BVA) | Password 7 ký tự (sát dưới biên) |
+| TC_LOGIN_11 | Password 9 chars | Positive (BVA) | Password 9 ký tự (sát trên biên), không báo lỗi độ dài |
+| TC_LOGIN_12 | Email missing @ and domain | Negative (EP) | Email `admin` thiếu `@` và tên miền |
 
 > **Lưu ý**: Trong file Excel gốc, TC_LOGIN_08 ghi "6 characters" nhưng dữ liệu test và message lỗi thực tế của hệ thống là **8 ký tự**. Dự án đã chỉnh theo thực tế.
 
@@ -32,18 +35,23 @@ Dựa trên bộ test case **Equivalence Partitioning (EP)** và **Boundary Valu
 ## 📁 Cấu trúc dự án
 
 ```
-e-commerce-login-automation/
+ECommerceLoginAutomation/
 ├── config.ini                 # Cấu hình URL + credentials
 ├── requirements.txt
+├── run_tests.py               # Chạy toàn bộ suite + xuất HTML/Excel report
 ├── README.md
 ├── pages/
 │   └── login_page.py          # Page Object của trang Sign In
 ├── tests/
-│   └── test_login_ep_bva.py   # 9 test cases EP + BVA
+│   └── test_login_ep_bva.py   # 12 test cases EP + BVA
 ├── utils/
-│   └── browser_setup.py       # Khởi tạo WebDriver
-├── reports/                   # HTML report sau khi chạy test
-└── resources/                 # (optional) chromedriver local
+│   ├── browser_setup.py       # Khởi tạo WebDriver
+│   └── excel_report.py        # Xuất báo cáo Excel, cập nhật Status
+├── testdata/
+│   └── TestCases_Login_EP_BVA.xlsx  # Test case + dữ liệu test (Requirement ID, Priority)
+├── scripts/
+│   └── update_testcases.py    # Script cập nhật file test case
+└── reports/                   # Báo cáo sau khi chạy test
 ```
 
 ## ⚙️ Cài đặt
@@ -65,7 +73,15 @@ pip install -r requirements.txt
 
 ## ▶️ Chạy test
 
-### Cách 1: Chạy bằng unittest + HTML report
+### Cách 1: Chạy toàn bộ suite (khuyến nghị)
+
+```bash
+python run_tests.py
+```
+
+Sinh HTML report + Excel report trong `reports/` và cập nhật cột Status trong file test case.
+
+### Cách 1b: Chạy trực tiếp bằng unittest
 
 ```bash
 python tests/test_login_ep_bva.py
@@ -118,5 +134,5 @@ Nếu để trống, project sẽ tự động tải chromedriver bằng `webdri
 ## 👤 Nguồn tham khảo
 
 - Repo gốc: https://github.com/taquocy/e-commerce-for-test-automation
-- Test case do Claude tạo (EP + BVA)
+- Test case thiết kế theo EP + BVA (file `testdata/TestCases_Login_EP_BVA.xlsx`)
 - Website Under Test: https://e-commerce-for-testing.onrender.com
