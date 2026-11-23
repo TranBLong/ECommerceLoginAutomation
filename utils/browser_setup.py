@@ -11,9 +11,31 @@ class BrowserSetup:
 
     @staticmethod
     def get_driver(headless: bool = False):
+        browser = os.environ.get("BROWSER", "chrome").lower()
+
         config = configparser.ConfigParser()
         config_path = os.path.join(os.path.dirname(__file__), "..", "config.ini")
         config.read(config_path, encoding="utf-8")
+
+        if browser == "firefox":
+            from selenium.webdriver.firefox.options import Options as FFOptions
+
+            ff = FFOptions()
+            if headless:
+                ff.add_argument("-headless")
+            return webdriver.Firefox(options=ff)
+
+        if browser == "edge":
+            from selenium.webdriver.edge.options import Options as EdgeOptions
+
+            edge = EdgeOptions()
+            edge.add_argument("--start-maximized")
+            edge.add_argument("--disable-notifications")
+            edge.add_argument("--no-sandbox")
+            edge.add_argument("--disable-dev-shm-usage")
+            if headless:
+                edge.add_argument("--headless=new")
+            return webdriver.Edge(options=edge)
 
         options = Options()
         options.add_argument("--start-maximized")
@@ -34,5 +56,4 @@ class BrowserSetup:
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=options)
 
-        driver.implicitly_wait(5)
         return driver

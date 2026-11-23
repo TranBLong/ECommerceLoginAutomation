@@ -1,0 +1,33 @@
+name: Selenium Login Tests
+
+on: [push, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chrome, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Đánh thức website (Render cold start)
+        run: curl -s -m 90 --retry 3 https://e-commerce-for-testing.onrender.com/ > /dev/null || true
+      - run: python run_tests.py
+        env:
+          HEADLESS: "1"
+          BROWSER: ${{ matrix.browser }}
+          VALID_EMAIL: ${{ secrets.VALID_EMAIL }}
+          VALID_PASSWORD: ${{ secrets.VALID_PASSWORD }}
+          BOUNDARY_EMAIL: ${{ secrets.BOUNDARY_EMAIL }}
+          BOUNDARY_PASSWORD: ${{ secrets.BOUNDARY_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ matrix.browser }}
+          path: reports/

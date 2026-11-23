@@ -47,7 +47,7 @@ def _export_excel(result):
         source_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "testdata", "TestCases_Login_EP_BVA.xlsx")
         update_source_excel_status(result, source_path)
     except Exception as e:
-        print(f"[Cảnh báo] Không cập nhật được Status trong Excel nguồn: {e}")
+        print("[Canh bao] Khong cap nhat duoc Status trong Excel nguon: {}".format(e))
 
 
 if __name__ == "__main__":

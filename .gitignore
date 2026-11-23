@@ -17,3 +17,6 @@ testdata/backup/
 .vscode/
 .idea/
 .DS_Store
+
+# Environment variables
+.env

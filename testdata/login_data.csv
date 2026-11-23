@@ -1,0 +1,13 @@
+tc_id,slug,title,email,password,expected_type,expected_text,not_expected_text
+TC_LOGIN_01,valid_login,Valid login,{VALID_EMAIL},{VALID_PASSWORD},success,,
+TC_LOGIN_02,unregistered_email,Unregistered email,notfound_user@gmail.com,{VALID_PASSWORD},server_error,The email address was not found.,
+TC_LOGIN_03,incorrect_password,Incorrect password,{VALID_EMAIL},wrongpassword123,server_error,email or password not correct,
+TC_LOGIN_04,invalid_email_format,Missing @,adminit24mgmail.com,{VALID_PASSWORD},form_error,Định dạng phải có,
+TC_LOGIN_05,empty_email,Empty email,,{VALID_PASSWORD},form_error,Bạn chưa nhập địa chỉ email,
+TC_LOGIN_06,empty_password,Empty password,{VALID_EMAIL},,form_error,Bạn chưa nhập mật khẩu,
+TC_LOGIN_07,both_empty,Both empty,,,form_error,Bạn chưa nhập địa chỉ email|Bạn chưa nhập mật khẩu,
+TC_LOGIN_08,password_min_boundary,8 chars,{BOUNDARY_EMAIL},{BOUNDARY_PASSWORD},success,,
+TC_LOGIN_09,password_below_min,5 chars,{VALID_EMAIL},12345,form_error,Yêu cầu tối thiểu 8 ký tự,
+TC_LOGIN_10,password_7_chars,7 chars,{VALID_EMAIL},1234567,form_error,Yêu cầu tối thiểu 8 ký tự,
+TC_LOGIN_11,password_9_chars,9 chars,{BOUNDARY_EMAIL},{BOUNDARY_PASSWORD}a,server_error,email or password not correct,tối thiểu
+TC_LOGIN_12,email_missing_at_domain,admin,admin,{VALID_PASSWORD},form_error,Định dạng phải có,

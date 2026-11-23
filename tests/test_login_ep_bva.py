@@ -12,6 +12,9 @@ import configparser
 import os
 import sys
 import time
+import csv
+
+from dotenv import load_dotenv
 
 # Thêm project root vào path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -19,12 +22,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from pages.login_page import LoginPage
 from utils.browser_setup import BrowserSetup
 
-# Thông báo lỗi thực tế của website
-MSG_EMAIL_NOT_FOUND = "The email address was not found."
-MSG_WRONG_CREDENTIALS = "email or password not correct"
-MSG_EMPTY_EMAIL = "Bạn chưa nhập địa chỉ email"
-MSG_EMPTY_PASSWORD = "Bạn chưa nhập mật khẩu"
-MSG_MIN_LENGTH = "Yêu cầu tối thiểu 8 ký tự"
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_FILE = os.path.join(ROOT, "testdata", "login_data.csv")
+load_dotenv(os.path.join(ROOT, ".env"))
+
+
+def _resolve(value):
+    for key in ("VALID_EMAIL", "VALID_PASSWORD", "BOUNDARY_EMAIL", "BOUNDARY_PASSWORD"):
+        value = value.replace("{%s}" % key, os.environ.get(key, ""))
+    return value
 
 
 class TestLoginEPBVA(unittest.TestCase):
@@ -41,12 +47,6 @@ class TestLoginEPBVA(unittest.TestCase):
 
         cls.base_url = cls.config["app"]["base_url"]
         cls.login_url = cls.config["app"]["login_url"]
-        cls.valid_email = cls.config["credentials"]["valid_email"]
-        cls.valid_password = cls.config["credentials"]["valid_password"]
-
-        # Tài khoản thường có mật khẩu đúng 8 ký tự (biên dưới hợp lệ) - dùng cho BVA
-        cls.boundary_email = cls.config.get("boundary_account", "email", fallback="aa@gmail.com")
-        cls.boundary_password = cls.config.get("boundary_account", "password", fallback="aA@2aA@2")
 
         cls.driver = BrowserSetup.get_driver(headless=os.environ.get("HEADLESS") == "1")
 
@@ -71,173 +71,46 @@ class TestLoginEPBVA(unittest.TestCase):
     def _has_length_error(self, errors):
         return any("tối thiểu" in e.lower() or "minimum" in e.lower() for e in errors)
 
-    # ------------------------------------------------------------------
-    # TC_LOGIN_01 - Positive (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_01_valid_login(self):
-        """Verify that user can login successfully with valid account"""
-        self.page.login(self.valid_email, self.valid_password)
-
-        self.assertTrue(
-            self.page.is_login_successful(),
-            "Login không thành công với tài khoản hợp lệ (không thấy nút Profile/Admin). URL: "
-            + self.page.get_current_url()
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_02 - Negative (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_02_unregistered_email(self):
-        """Verify login with unregistered email"""
-        self.page.login("notfound_user@gmail.com", self.valid_password)
-
-        self.assertTrue(
-            self.page.wait_for_text(MSG_EMAIL_NOT_FOUND),
-            f"Không thấy message '{MSG_EMAIL_NOT_FOUND}'. Errors: {self.page.get_all_visible_errors()}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_03 - Negative (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_03_incorrect_password(self):
-        """Verify login with incorrect password"""
-        self.page.login(self.valid_email, "wrongpassword123")
-
-        self.assertTrue(
-            self.page.wait_for_text(MSG_WRONG_CREDENTIALS),
-            f"Không thấy message '{MSG_WRONG_CREDENTIALS}'. Errors: {self.page.get_all_visible_errors()}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_04 - Negative (EP) - thiếu '@' nhưng có đuôi
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_04_invalid_email_format(self):
-        """Verify login with invalid email format (Missing '@')"""
-        self.page.login("adminit24mgmail.com", self.valid_password)
-
-        errors = self.page.get_error_messages()
-        # Chỉ chấp nhận đúng lỗi format: "Định dạng phải có '@' trong chuỗi"
-        self.assertTrue(
-            self._has_error(errors, "Định dạng phải có", "@"),
-            f"Không thấy lỗi format email. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_05 - Negative (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_05_empty_email(self):
-        """Verify login with empty email field"""
-        self.page.login("", self.valid_password)
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(
-            self._has_error(errors, MSG_EMPTY_EMAIL),
-            f"Không thấy lỗi '{MSG_EMPTY_EMAIL}'. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_06 - Negative (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_06_empty_password(self):
-        """Verify login with empty password field"""
-        self.page.login(self.valid_email, "")
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(
-            self._has_error(errors, MSG_EMPTY_PASSWORD),
-            f"Không thấy lỗi '{MSG_EMPTY_PASSWORD}'. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_07 - Negative (EP)
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_07_both_empty(self):
-        """Verify login with both empty email and password fields"""
-        self.page.login("", "")
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(self._has_error(errors, MSG_EMPTY_EMAIL), f"Thiếu lỗi email. Errors: {errors}")
-        self.assertTrue(self._has_error(errors, MSG_EMPTY_PASSWORD), f"Thiếu lỗi password. Errors: {errors}")
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_08 - Positive (BVA) - biên dưới hợp lệ: 8 ký tự
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_08_password_min_boundary(self):
-        """Verify login with password length at minimum boundary (8 characters)"""
-        self.assertEqual(len(self.boundary_password), 8, "Mật khẩu biên phải đúng 8 ký tự")
-
-        self.page.login(self.boundary_email, self.boundary_password)
-
-        self.assertTrue(
-            self.page.is_login_successful(),
-            f"Mật khẩu 8 ký tự phải đăng nhập được. Errors: {self.page.get_all_visible_errors()}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_09 - Negative (BVA) - dưới biên: 5 ký tự
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_09_password_below_min(self):
-        """Verify login with password length below minimum boundary (5 characters)"""
-        self.page.login(self.valid_email, "12345")
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(
-            self._has_error(errors, MSG_MIN_LENGTH),
-            f"Không thấy lỗi '{MSG_MIN_LENGTH}'. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_10 - Negative (BVA) - sát dưới biên: 7 ký tự
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_10_password_7_chars(self):
-        """Verify login with password length just below minimum boundary (7 characters)"""
-        self.page.login(self.valid_email, "1234567")
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(
-            self._has_error(errors, MSG_MIN_LENGTH),
-            f"Không thấy lỗi '{MSG_MIN_LENGTH}'. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_11 - Positive (BVA) - sát trên biên: 9 ký tự
-    # Hệ thống KHÔNG báo lỗi độ dài; vì không phải mật khẩu thật nên server báo sai thông tin.
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_11_password_9_chars(self):
-        """Verify login with password length just above minimum boundary (9 characters)"""
-        password_9 = self.boundary_password + "a"
-        self.assertEqual(len(password_9), 9)
-
-        self.page.login(self.boundary_email, password_9)
-
-        # Chờ lỗi từ server rồi mới kiểm tra, để chắc chắn form đã được submit
-        self.assertTrue(
-            self.page.wait_for_text(MSG_WRONG_CREDENTIALS),
-            f"Không thấy '{MSG_WRONG_CREDENTIALS}'. Errors: {self.page.get_all_visible_errors()}"
-        )
-        errors = self.page.get_error_messages()
-        self.assertFalse(
-            self._has_length_error(errors),
-            f"Mật khẩu 9 ký tự không được báo lỗi độ dài. Errors: {errors}"
-        )
-
-    # ------------------------------------------------------------------
-    # TC_LOGIN_12 - Negative (EP) - thiếu '@' và thiếu đuôi email
-    # ------------------------------------------------------------------
-    def test_TC_LOGIN_12_email_missing_at_and_domain(self):
-        """Verify login with invalid email format (Missing '@' and domain)"""
-        self.page.login("admin", self.valid_password)
-
-        errors = self.page.get_error_messages()
-        self.assertTrue(
-            self._has_error(errors, "Định dạng phải có", "@"),
-            f"Không thấy lỗi format email. Errors: {errors}"
-        )
+    def _screenshot(self):
+        os.makedirs(os.path.join(ROOT, "reports", "screenshots"), exist_ok=True)
+        name = f"{self._testMethodName}_{time.strftime('%H%M%S')}.png"
+        self.driver.save_screenshot(os.path.join(ROOT, "reports", "screenshots", name))
 
     @classmethod
     def tearDownClass(cls):
         if cls.driver:
             cls.driver.quit()
+
+
+def _make_test(row):
+    def test(self):
+        email, password = _resolve(row["email"]), _resolve(row["password"])
+        texts = [t for t in row["expected_text"].split("|") if t]
+        try:
+            self.page.login(email, password)
+            kind = row["expected_type"]
+            if kind == "success":
+                self.assertTrue(self.page.is_login_successful(), "Login không thành công")
+            elif kind == "server_error":
+                for t in texts:
+                    self.assertTrue(self.page.wait_for_text(t), f"Không thấy '{t}'")
+            elif kind == "form_error":
+                errors = self.page.get_error_messages()
+                for t in texts:
+                    self.assertTrue(self._has_error(errors, t), f"Thiếu '{t}'. Errors: {errors}")
+            if row["not_expected_text"]:
+                errors = self.page.get_error_messages()
+                self.assertFalse(self._has_error(errors, row["not_expected_text"]))
+        except Exception:
+            self._screenshot()
+            raise
+    test.__doc__ = row["title"]
+    return test
+
+
+with open(DATA_FILE, encoding="utf-8-sig", newline="") as f:
+    for row in csv.DictReader(f):
+        setattr(TestLoginEPBVA, f"test_{row['tc_id']}_{row['slug']}", _make_test(row))
 
 
 if __name__ == "__main__":
