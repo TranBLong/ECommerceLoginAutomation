@@ -18,6 +18,8 @@ from copy import copy
 from datetime import datetime
 
 from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+from openpyxl.utils import get_column_letter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 EXCEL_PATH = os.path.join(ROOT, "testdata", "TestCases_Login_EP_BVA.xlsx")
@@ -85,6 +87,66 @@ NEW_ROWS = [
     },
 ]
 
+COL_REQ = "Requirement ID"
+COL_PRIORITY = "Priority"
+TRACE = {
+    "TC_LOGIN_01": ("REQ_LOGIN_01", "High"),
+    "TC_LOGIN_02": ("REQ_LOGIN_02", "High"),
+    "TC_LOGIN_03": ("REQ_LOGIN_02", "High"),
+    "TC_LOGIN_04": ("REQ_LOGIN_03", "Medium"),
+    "TC_LOGIN_05": ("REQ_LOGIN_04", "Medium"),
+    "TC_LOGIN_06": ("REQ_LOGIN_04", "Medium"),
+    "TC_LOGIN_07": ("REQ_LOGIN_04", "Medium"),
+    "TC_LOGIN_08": ("REQ_LOGIN_05", "High"),
+    "TC_LOGIN_09": ("REQ_LOGIN_05", "Medium"),
+    "TC_LOGIN_10": ("REQ_LOGIN_05", "High"),
+    "TC_LOGIN_11": ("REQ_LOGIN_05", "Medium"),
+    "TC_LOGIN_12": ("REQ_LOGIN_03", "Low"),
+}
+ZEBRA = PatternFill("solid", fgColor="FFF9FAFB")
+NO_FILL = PatternFill(fill_type=None)
+
+
+def ensure_trace_columns(ws, header_row):
+    """Thêm cột Requirement ID và Priority vào cuối bảng (nếu chưa có)."""
+    last = max(c.column for c in ws[header_row] if c.value)
+    existing = {c.value for c in ws[header_row]}
+    for name, width in ((COL_REQ, 18), (COL_PRIORITY, 12)):
+        if name in existing:
+            continue
+        last += 1
+        ws.cell(header_row, last).value = name
+        ws.column_dimensions[get_column_letter(last)].width = width
+
+
+def fill_trace_values(ws, header_row, rows):
+    cols = {c.value: c.column for c in ws[header_row] if c.value}
+    for tc_id, r in rows.items():
+        if tc_id in TRACE:
+            ws.cell(r, cols[COL_REQ]).value = TRACE[tc_id][0]
+            ws.cell(r, cols[COL_PRIORITY]).value = TRACE[tc_id][1]
+
+
+def normalize_format(ws, header_row, last_row):
+    """Đồng bộ định dạng: header theo ô đầu; dòng dữ liệu theo dòng dữ liệu đầu tiên + tô xen kẽ."""
+    cols = {c.value: c.column for c in ws[header_row] if c.value}
+    max_col = max(cols.values())
+    status_col = cols["Status"]
+    tmpl = header_row + 1
+    for c in range(1, max_col + 1):
+        src, dst = ws.cell(header_row, 1), ws.cell(header_row, c)
+        dst.font, dst.fill = copy(src.font), copy(src.fill)
+        dst.border, dst.alignment = copy(src.border), copy(src.alignment)
+    for r in range(tmpl, last_row + 1):
+        for c in range(1, max_col + 1):
+            # Cột mới (sau Status) lấy kiểu của cột Test Type
+            src = ws.cell(tmpl, c if c <= status_col else cols["Test Type"])
+            dst = ws.cell(r, c)
+            dst.font, dst.border = copy(src.font), copy(src.border)
+            dst.alignment = copy(src.alignment)
+            dst.fill = copy(ZEBRA) if (r - tmpl) % 2 == 1 else copy(NO_FILL)
+        ws.row_dimensions[r].height = ws.row_dimensions[tmpl].height
+
 
 def find_header(ws):
     """Trả về (số dòng header, {tên cột: số cột})."""
@@ -150,6 +212,8 @@ def main():
     wb = load_workbook(EXCEL_PATH)
     ws = wb.active
     header_row, cols = find_header(ws)
+    ensure_trace_columns(ws, header_row)
+    header_row, cols = find_header(ws)  # đọc lại vì đã thêm cột
     rows = find_rows(ws, header_row, cols["Test Case ID"])
     last_tc_row = max(rows.values())
 
@@ -190,6 +254,9 @@ def main():
             if r:
                 ws.cell(r, cols[COL_STATUS]).value = status
                 print(f"Status {tc_id} = {status}")
+
+    fill_trace_values(ws, header_row, rows)
+    normalize_format(ws, header_row, max(rows.values()))
 
     wb.save(EXCEL_PATH)
     print(f"Đã lưu: {os.path.relpath(EXCEL_PATH, ROOT)}")
