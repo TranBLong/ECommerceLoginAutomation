@@ -80,7 +80,7 @@ NEW_ROWS = [
         "Preconditions": PRE,
         COL_STEPS: f"1. Navigate to url: {URL}\n2. Enter email without '@' and domain\n"
                    "3. Enter valid password\n4. Tap on Sign In button",
-        "Test Data": "Email: asdasdasdad\nPassword: admin123",
+        "Test Data": "Email: admin\nPassword: admin123",
         COL_EXPECTED: "Error message 'Định dạng phải có '@' trong chuỗi'",
         "Test Type": "Negative (EP)",
         COL_STATUS: "Untested",

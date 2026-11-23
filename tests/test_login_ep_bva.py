@@ -226,7 +226,7 @@ class TestLoginEPBVA(unittest.TestCase):
     # ------------------------------------------------------------------
     def test_TC_LOGIN_12_email_missing_at_and_domain(self):
         """Verify login with invalid email format (Missing '@' and domain)"""
-        self.page.login("asdasdasdad", self.valid_password)
+        self.page.login("admin", self.valid_password)
 
         errors = self.page.get_error_messages()
         self.assertTrue(
